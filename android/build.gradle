@@ -1,0 +1,48 @@
+buildscript {
+    ext.kotlin_version = '1.9.22'
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.3.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+// Fix for plugins (e.g. wakelock) that don't set namespace for AGP 8+
+// Must register before evaluationDependsOn so afterEvaluate runs in time
+subprojects { subproject ->
+    subproject.afterEvaluate {
+        if (subproject.plugins.hasPlugin("com.android.library")) {
+            if (subproject.android.namespace == null || subproject.android.namespace.isEmpty()) {
+                def manifest = subproject.file("src/main/AndroidManifest.xml")
+                if (manifest.exists()) {
+                    def pkg = new XmlParser().parse(manifest).attribute("package")
+                    if (pkg != null) {
+                        subproject.android.namespace = pkg
+                    }
+                }
+            }
+        }
+    }
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
